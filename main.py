@@ -1,12 +1,17 @@
 import cupy as np
 import math
+import random
+import click
 from loguru import logger
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 ml_folder = "./ml-1m/"
+TrainingTargetTitle = "ML-1M"
 
 def matrix_factorization(R, valid_R, P, Q, K, steps=5000, alpha=0.0002, beta=0.02):
     logger.info('training')
+    rmse_lst = []
     '''
     R: rating matrix
     P: |U| * K (User features matrix)
@@ -58,17 +63,23 @@ def matrix_factorization(R, valid_R, P, Q, K, steps=5000, alpha=0.0002, beta=0.0
                 for k in range(K):
                     e = e + (beta/2) * (pow(P[i][k],2) + pow(Q[k][j],2))
         '''
-        e_table = np.subtract(R, np.dot(P, Q))
+        e_table = np.subtract(valid_R, np.dot(P, Q))
         
-        e_table = np.where(R == 0, 0, e_table**2)
+        e_table = np.where(valid_R == 0, 0, e_table**2)
         e = np.sum(e_table)
         e_num = np.count_nonzero(e_table)
         progress.set_description("RMSE = {L:.2f}".format(L=math.sqrt(e/e_num)))
+
+        rmse_lst.append(math.sqrt(e/e_num))
         
         #input()
         # 0.001: local minimum
         if e < 0.001:
             break
+
+    plt.plot(rmse_lst)
+    plt.title(TrainingTargetTitle + "\nRMSE = {L:.2f}".format(L=rmse_lst[-1]))
+    plt.savefig(TrainingTargetTitle + ".png")
 
     return P, Q.T
 
@@ -112,6 +123,8 @@ def pre_process():
         u_id, m_id, rate, timestamp = line.split("::")
 
         if cur_id != u_id or i == len(R_lines)-1:
+            random.seed(0)
+            random.shuffle(cur_rate)
             lc = len(cur_rate)
             # train R
             for u_i, m_i, rate in cur_rate[:int(lc*0.8)]:
@@ -186,6 +199,14 @@ def main2():
 
     print(nR)
 
-if __name__ == '__main__':
+@click.command()
+@click.option('-t', 'title', help='Training Target', type=str, required=True)
+def params(title):
+    global TrainingTargetTitle
+    TrainingTargetTitle = title
     main()
+
+
+if __name__ == '__main__':    
+    params()
 
