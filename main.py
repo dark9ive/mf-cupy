@@ -1,4 +1,4 @@
-import cupy as np
+import numpy as np
 from tqdm import tqdm
 
 ml_folder = "./ml-1m/"
@@ -21,13 +21,14 @@ def matrix_factorization(R, P, Q, K, rates_lst, steps=5000, alpha=0.0002, beta=0
         e_table = np.where(R == 0, 0, e_table)
 
         #print(e_table)
-        p_minus_rate = np.count_nonzero(R < 4, axis=1) * alpha * beta
+        #input()
+        p_minus_rate = np.count_nonzero(R != 0, axis=1) * alpha * beta
         p_minus_rate = 1 - p_minus_rate
         nP = P
         #nP = P * p_minus_rate.reshape(len(p_minus_rate), 1)
         nP = np.add(nP, (np.dot(e_table, Q.T))*(2*alpha))
 
-        q_minus_rate = np.count_nonzero(R < 4, axis=0) * alpha * beta
+        q_minus_rate = np.count_nonzero(R != 0, axis=0) * alpha * beta
         q_minus_rate = 1 - q_minus_rate
         #Q *= q_minus_rate
         Q = np.add(Q, (np.dot(P.T, e_table))*(2*alpha))
