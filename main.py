@@ -1,16 +1,20 @@
 import cupy as np
 import math
 import random
-import click
+import argparse
 from loguru import logger
 
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-ml_folder = "./ml-1m/"
-TrainingTargetTitle = "ML-1M"
+ml_folder = ""
+TrainingTargetTitle = ""
+K = 0
+Epochs = 0
+alpha = 0
+seed = 0
 
-def matrix_factorization(R, valid_R, P, Q, K, steps=5000, alpha=0.0002, beta=0.02):
+def matrix_factorization(R, valid_R, P, Q, beta=0.02):
     logger.info('training')
     rmse_lst = []
     '''
@@ -22,14 +26,12 @@ def matrix_factorization(R, valid_R, P, Q, K, steps=5000, alpha=0.0002, beta=0.0
     alpha: learning rate
     beta: regularization parameter'''
     Q = Q.T
-    progress = tqdm(range(steps))
+    progress = tqdm(range(Epochs))
     for step in progress:
         
         e_table = np.subtract(R, np.dot(P, Q))
         
         e_table = np.where(R == 0, 0, e_table)
-
-        #print(e_table)
 
         p_minus_rate = np.count_nonzero(R, axis=1) * alpha * beta
         p_minus_rate = 1 - p_minus_rate
@@ -42,29 +44,9 @@ def matrix_factorization(R, valid_R, P, Q, K, steps=5000, alpha=0.0002, beta=0.0
         Q *= q_minus_rate
         Q = np.add(Q, (np.dot(P.T, e_table))*(2*alpha))
         P = nP
-        '''
-        for idx in tqdm(range(len(rates_lst))):
-            i, j = rates_lst[idx]
-            if R[i][j] > 0:
-                # calculate error
-                #eij = R[i][j] - np.dot(P[i,:],Q[:,j])
-                eij = e_table[i][j]
-                for k in range(K):
-                    # calculate gradient with a and beta parameter
-                    P[i][k] = P[i][k] + alpha * (2 * eij * Q[k][j] - beta * P[i][k])
-                    Q[k][j] = Q[k][j] + alpha * (2 * eij * P[i][k] - beta * Q[k][j])
-
-        #eR = np.dot(P,Q)
-
-        e = 0
         
-        for idx in tqdm(range(len(rates_lst))):
-            i, j = rates_lst[idx]
-            if R[i][j] > 0:
-                e = e + pow(R[i][j] - np.dot(P[i,:],Q[:,j]), 2)
-                for k in range(K):
-                    e = e + (beta/2) * (pow(P[i][k],2) + pow(Q[k][j],2))
-        '''
+        #   Count Loss
+
         e_table = np.subtract(valid_R, np.dot(P, Q))
         
         e_table = np.where(valid_R == 0, 0, e_table**2)
@@ -73,11 +55,6 @@ def matrix_factorization(R, valid_R, P, Q, K, steps=5000, alpha=0.0002, beta=0.0
         progress.set_description("RMSE = {L:.2f}".format(L=math.sqrt(e/e_num)))
 
         rmse_lst.append(math.sqrt(e/e_num))
-        
-        #input()
-        # 0.001: local minimum
-        if e < 0.001:
-            break
 
     plt.plot(rmse_lst)
     plt.title(TrainingTargetTitle + "\nRMSE = {L:.2f}".format(L=rmse_lst[-1]))
@@ -152,63 +129,36 @@ def pre_process():
 def main():
     N, M, R, valid_R = pre_process()
     
-    K = 100
  
-    np.random.seed(0)
+    np.random.seed(seed)
     P = np.random.rand(N,K)
     Q = np.random.rand(M,K)
     
-    nP, nQ = matrix_factorization(R, valid_R, P, Q, K, alpha=0.00002, steps=1000)
+    nP, nQ = matrix_factorization(R, valid_R, P, Q)
 
     nR = np.dot(nP, nQ.T)
 
     print(nR)
 
-def main2():
-    R = [
+if __name__ == '__main__':
 
-     [5,3,0,1],
-
-     [4,0,0,1],
-
-     [1,1,0,5],
-
-     [1,0,0,4],
-
-     [0,1,5,4],
+    parser = argparse.ArgumentParser()
     
-     [2,1,3,0],
+    parser.add_argument("-p", "--path", help="Specify dataset path", default="./ml-1m/")
+    parser.add_argument("-g", "--graph", help="Specify output graph filename and title", default="ML-1M")
+    parser.add_argument("-d", "--dim", help="Set Dimension", type=int, default=10)
+    parser.add_argument("-e", "--epoch", help="Set epochs to be trained", type=int, default=1000)
+    parser.add_argument("-lr", "-a", "--alpha", help="Set learning rate(Alpha)", type=float, default=0.00002)
+    parser.add_argument("-s", "--seed", help="Set random seed", type=int, default=0)
 
-    ]
+    args = parser.parse_args()
+
+    ml_folder = args.path
+    TrainingTargetTitle = args.graph
+    K = args.dim
+    Epochs = args.epoch
+    alpha = args.alpha
+    seed = args.seed
     
-    R = np.array(R)
-    # N: num of User
-    N = len(R)
-    # M: num of Movie
-    M = len(R[0])
-    # Num of Features
-    K = 10
 
- 
-    P = np.random.rand(N,K)
-    Q = np.random.rand(M,K)
-
- 
-
-    nP, nQ = matrix_factorization(R, P, Q, K, alpha=0.01, steps=1000)
-
-    nR = np.dot(nP, nQ.T)
-
-    print(nR)
-
-@click.command()
-@click.option('-t', 'title', help='Training Target', type=str, required=True)
-def params(title):
-    global TrainingTargetTitle
-    TrainingTargetTitle = title
     main()
-
-
-if __name__ == '__main__':    
-    params()
-
