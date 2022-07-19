@@ -3,6 +3,7 @@ import math
 import random
 import click
 from loguru import logger
+
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
@@ -29,6 +30,7 @@ def matrix_factorization(R, valid_R, P, Q, K, steps=5000, alpha=0.0002, beta=0.0
         e_table = np.where(R == 0, 0, e_table)
 
         #print(e_table)
+
         p_minus_rate = np.count_nonzero(R, axis=1) * alpha * beta
         p_minus_rate = 1 - p_minus_rate
         nP = P
