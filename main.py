@@ -14,9 +14,8 @@ Epochs = 0
 alpha = 0
 seed = 0
 
-def matrix_factorization(R, valid_R, P, Q, beta=0.02):
+def bpr_matrix_factorization(P, Q, pos_sam_lst, neg=5):
     logger.info('training')
-    rmse_lst = []
     '''
     R: rating matrix
     P: |U| * K (User features matrix)
@@ -28,26 +27,10 @@ def matrix_factorization(R, valid_R, P, Q, beta=0.02):
     Q = Q.T
     progress = tqdm(range(Epochs))
     for step in progress:
-        
-        e_table = np.subtract(R, np.dot(P, Q))
-        
-        e_table = np.where(R == 0, 0, e_table)
 
-        p_minus_rate = np.count_nonzero(R, axis=1) * alpha * beta
-        p_minus_rate = 1 - p_minus_rate
-        nP = P
-        nP = P * p_minus_rate.reshape(len(p_minus_rate), 1)
-        nP = np.add(nP, (np.dot(e_table, Q.T))*(2*alpha))
+        R = np.dot(P, Q)
 
-        q_minus_rate = np.count_nonzero(R, axis=0) * alpha * beta
-        q_minus_rate = 1 - q_minus_rate
-        Q *= q_minus_rate
-        Q = np.add(Q, (np.dot(P.T, e_table))*(2*alpha))
-        P = nP
-        
-        #   Count Loss
-
-        e_table = np.subtract(valid_R, np.dot(P, Q))
+        for 
         
         e_table = np.where(valid_R == 0, 0, e_table**2)
         e = np.sum(e_table)
