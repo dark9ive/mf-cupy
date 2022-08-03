@@ -11,10 +11,22 @@ ml_folder = ""
 TrainingTargetTitle = ""
 K = 0
 Epochs = 0
-alpha = 0
+alpha = 0.0
 seed = 0
+lam = 0.0
 
-def bpr_matrix_factorization(P, Q, pos_sam_lst, neg=5):
+def mf_bpr_update(Vu, Vi, Vj):
+    negxuij = (np.dot(Vu, Vi) - np.dot(Vu, Vj)) * -1        #   Negative of (xui - xuj)
+    if negxuij > 500:
+        negxuij = 500
+    ft = math.exp(negxuij) / (1 + math.exp(negxuij))        #   Derivative of FirstTerm
+
+    Vu = Vu + alpha * (ft * (Vi - Vj) + lam * np.linalg.norm(Vu))
+    Vi = Vu + alpha * (ft * Vu + lam * np.linalg.norm(Vi))
+    Vj = Vu + alpha * (ft * (-Vu) + lam * np.linalg.norm(Vj))
+    return Vu, Vi, Vj
+
+def bpr_matrix_factorization(P, Q, pos_lst, neg_mat, neg=5):
     logger.info('training')
     '''
     R: rating matrix
@@ -24,26 +36,19 @@ def bpr_matrix_factorization(P, Q, pos_sam_lst, neg=5):
     steps: iterations
     alpha: learning rate
     beta: regularization parameter'''
-    Q = Q.T
     progress = tqdm(range(Epochs))
     for step in progress:
 
-        R = np.dot(P, Q)
+        R = np.dot(P, Q.T)
 
-        for 
-        
-        e_table = np.where(valid_R == 0, 0, e_table**2)
-        e = np.sum(e_table)
-        e_num = np.count_nonzero(e_table)
-        progress.set_description("RMSE = {L:.2f}".format(L=math.sqrt(e/e_num)))
+        for _ in neg:
+            x1, y1 = random.choice(pos_lst)
+            x2 = x1
+            y2 = random.choice(neg_mat[x2])
 
-        rmse_lst.append(math.sqrt(e/e_num))
+            P[x1], Q[y1], Q[y2] = mf_bpr_update(P[x1], Q[y1], Q[y2])
 
-    plt.plot(rmse_lst)
-    plt.title(TrainingTargetTitle + "\nRMSE = {L:.2f}".format(L=rmse_lst[-1]))
-    plt.savefig(TrainingTargetTitle + ".png")
-
-    return P, Q.T
+    return P, Q
 
 def pre_process():
     logger.info('Pre Processing')
@@ -117,7 +122,7 @@ def main():
     P = np.random.rand(N,K)
     Q = np.random.rand(M,K)
     
-    nP, nQ = matrix_factorization(R, valid_R, P, Q)
+    nP, nQ = bpr_matrix_factorization(P, Q)
 
     nR = np.dot(nP, nQ.T)
 
@@ -131,7 +136,8 @@ if __name__ == '__main__':
     parser.add_argument("-g", "--graph", help="Specify output graph filename and title", default="ML-1M")
     parser.add_argument("-d", "--dim", help="Set Dimension", type=int, default=10)
     parser.add_argument("-e", "--epoch", help="Set epochs to be trained", type=int, default=1000)
-    parser.add_argument("-lr", "-a", "--alpha", help="Set learning rate(Alpha)", type=float, default=0.00002)
+    parser.add_argument("-lr", "-a", "--alpha", "--learningrate", help="Set learning rate(Alpha)", type=float, default=0.00002)
+    parser.add_argument("-lam", help="Set lambda", type=float, default=0.1)
     parser.add_argument("-s", "--seed", help="Set random seed", type=int, default=0)
 
     args = parser.parse_args()
@@ -142,5 +148,6 @@ if __name__ == '__main__':
     Epochs = args.epoch
     alpha = args.alpha
     seed = args.seed
+    lam = args.lam
     
     main()
