@@ -14,6 +14,7 @@ Epochs = 0
 alpha = 0.0
 seed = 0
 lam = 0.0
+neg = 0
 
 def mf_bpr_update(Vu, Vi, Vj):
     negxuij = (np.dot(Vu, Vi) - np.dot(Vu, Vj)) * -1        #   Negative of (xui - xuj)
@@ -26,7 +27,7 @@ def mf_bpr_update(Vu, Vi, Vj):
     Vj = Vu + alpha * (ft * (-Vu) + lam * np.linalg.norm(Vj))
     return Vu, Vi, Vj
 
-def bpr_matrix_factorization(P, Q, pos_lst, neg_mat, neg=5):
+def bpr_matrix_factorization(P, Q, pos_lst, neg_mat):
     logger.info('training')
     '''
     R: rating matrix
@@ -41,7 +42,7 @@ def bpr_matrix_factorization(P, Q, pos_lst, neg_mat, neg=5):
 
         R = np.dot(P, Q.T)
 
-        for _ in neg:
+        for _ in range(neg):
             x1, y1 = random.choice(pos_lst)
             x2 = x1
             y2 = random.choice(neg_mat[x2])
@@ -69,60 +70,53 @@ def pre_process():
     R_lines = RF.readlines()
     RF.close()
 
-    train_R = np.zeros((N, M), dtype=np.float64)
-    valid_R = np.zeros((N, M), dtype=np.float64)
+    matrix = np.zeros((N, M), dtype=np.float64)
     
-    for i in range(M):
+    logger.info('Building item hashtable')
+    for i in tqdm(range(M)):
         line = M_lines[i]
         m_id = line.split("::")[0]
         movie_i2id[i] = m_id
         movie_id2i[m_id] = i
-    for i in range(N):
+    logger.info('Building user hashtable')
+    for i in tqdm(range(N)):
         line = U_lines[i]
         u_id = line.split("::")[0]
         user_i2id[i] = u_id
         user_id2i[u_id] = i
 
-    cur_id = 1
-    cur_rate = []
+    logger.info('Building purchase matrix')
+    buf_ht = {}
+    pos_lst = []
+    neg_mat = []
     for i in tqdm(range(len(R_lines))):
         line = R_lines[i]
         u_id, m_id, rate, timestamp = line.split("::")
-
-        if cur_id != u_id or i == len(R_lines)-1:
-            random.seed(0)
-            random.shuffle(cur_rate)
-            lc = len(cur_rate)
-            # train R
-            for u_i, m_i, rate in cur_rate[:int(lc*0.8)]:
-                u_i = int(user_id2i[u_i])
-                m_i = int(movie_id2i[m_i])
-                rate = int(rate)
-                train_R[u_i][m_i] = rate
-            # valid R
-            for u_i, m_i, rate in cur_rate[int(lc*0.8):]:
-                u_i = int(user_id2i[u_i])
-                m_i = int(movie_id2i[m_i])
-                rate = int(rate)
-                valid_R[u_i][m_i] = rate
-            cur_id = u_id
-            cur_rate = []
-
-        cur_rate.append([u_id, m_id, rate])
         
+        u_i = int(user_id2i[u_id])
+        m_i = int(movie_id2i[m_id])
+        pos_lst.append([u_i, m_i])
+        buf_ht[(u_i, m_i)] = 1
+    
+    logger.info('Converting matrix')
+    for i in tqdm(range(N)):
+        buf = []
+        for j in range(M):
+            if (i, j) not in buf_ht:
+                buf.append(j)
+        neg_mat.append(buf)
 
-    return N, M, train_R, valid_R
+    return N, M, pos_lst, neg_mat
 
 
 def main():
-    N, M, R, valid_R = pre_process()
-    
+    N, M, pos_lst, neg_mat = pre_process()
  
     np.random.seed(seed)
     P = np.random.rand(N,K)
     Q = np.random.rand(M,K)
     
-    nP, nQ = bpr_matrix_factorization(P, Q)
+    nP, nQ = bpr_matrix_factorization(P, Q, pos_lst, neg_mat)
 
     nR = np.dot(nP, nQ.T)
 
@@ -138,6 +132,7 @@ if __name__ == '__main__':
     parser.add_argument("-e", "--epoch", help="Set epochs to be trained", type=int, default=1000)
     parser.add_argument("-lr", "-a", "--alpha", "--learningrate", help="Set learning rate(Alpha)", type=float, default=0.00002)
     parser.add_argument("-lam", help="Set lambda", type=float, default=0.1)
+    parser.add_argument("-n", "--neg", help="Set sample times per epoch", type=int, default=5)
     parser.add_argument("-s", "--seed", help="Set random seed", type=int, default=0)
 
     args = parser.parse_args()
@@ -147,7 +142,8 @@ if __name__ == '__main__':
     K = args.dim
     Epochs = args.epoch
     alpha = args.alpha
-    seed = args.seed
     lam = args.lam
+    neg = args.neg
+    seed = args.seed
     
     main()
