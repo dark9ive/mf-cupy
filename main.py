@@ -8,6 +8,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 ml_folder = ""
+recommend_file = ""
 TrainingTargetTitle = ""
 K = 0
 Epochs = 0
@@ -15,6 +16,7 @@ alpha = 0.0
 seed = 0
 lam = 0.0
 neg = 0
+topk = 0
 
 def mf_bpr_update(Vu, Vi, Vj):
     negxuij = (np.dot(Vu, Vi) - np.dot(Vu, Vj)) * -1        #   Negative of (xui - xuj)
@@ -106,11 +108,24 @@ def pre_process():
                 buf.append(j)
         neg_mat.append(buf)
 
-    return N, M, pos_lst, neg_mat
+    return N, M, pos_lst, neg_mat, user_i2id, movie_i2id
+
+def recommend(nR, user_i2id, movie_i2id):
+    logger.info("Recommend")
+    f = open(recommend_file, "w")
+    f.write("")
+    f.close()
+
+    for i, r in enumerate(tqdm(nR)):
+        movies = np.argpartition(r, -topk)[-topk:][::-1]
+        f = open(recommend_file, "a")
+        for k in range(topk):
+            f.write("{userID}::{movieID}::{rank}\n".format(userID=user_i2id[i], movieID=movie_i2id[int(movies[k])], rank=k+1))
+        f.close()
 
 
 def main():
-    N, M, pos_lst, neg_mat = pre_process()
+    N, M, pos_lst, neg_mat, user_i2id, movie_i2id = pre_process()
  
     np.random.seed(seed)
     P = np.random.rand(N,K)
@@ -119,6 +134,7 @@ def main():
     nP, nQ = bpr_matrix_factorization(P, Q, pos_lst, neg_mat)
 
     nR = np.dot(nP, nQ.T)
+    recommend(nR, user_i2id, movie_i2id)
 
     print(nR)
 
@@ -134,6 +150,8 @@ if __name__ == '__main__':
     parser.add_argument("-lam", help="Set lambda", type=float, default=0.1)
     parser.add_argument("-n", "--neg", help="Set sample times per epoch", type=int, default=5)
     parser.add_argument("-s", "--seed", help="Set random seed", type=int, default=0)
+    parser.add_argument("-rcmd", "--rcmd", help="Set recommend file path", default="recommend.dat")
+    parser.add_argument("-topk", "--topk", help="Set recommend top k elements", type=int, default=10)
 
     args = parser.parse_args()
 
@@ -145,5 +163,7 @@ if __name__ == '__main__':
     lam = args.lam
     neg = args.neg
     seed = args.seed
+    recommend_file = args.rcmd
+    topk = args.topk
     
     main()
