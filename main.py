@@ -1,4 +1,4 @@
-import cupy as np
+import numpy as np
 import math
 import random
 import argparse
@@ -25,8 +25,8 @@ def mf_bpr_update(Vu, Vi, Vj):
     ft = math.exp(negxuij) / (1 + math.exp(negxuij))        #   Derivative of FirstTerm
 
     Vu = Vu + alpha * (ft * (Vi - Vj) + lam * np.linalg.norm(Vu))
-    Vi = Vu + alpha * (ft * Vu + lam * np.linalg.norm(Vi))
-    Vj = Vu + alpha * (ft * (-Vu) + lam * np.linalg.norm(Vj))
+    Vi = Vi + alpha * (ft * Vu + lam * np.linalg.norm(Vi))
+    Vj = Vj + alpha * (ft * (-Vu) + lam * np.linalg.norm(Vj))
     return Vu, Vi, Vj
 
 def bpr_matrix_factorization(P, Q, pos_lst, neg_mat):
@@ -146,9 +146,9 @@ if __name__ == '__main__':
     parser.add_argument("-g", "--graph", help="Specify output graph filename and title", default="ML-1M")
     parser.add_argument("-d", "--dim", help="Set Dimension", type=int, default=10)
     parser.add_argument("-e", "--epoch", help="Set epochs to be trained", type=int, default=1000)
-    parser.add_argument("-lr", "-a", "--alpha", "--learningrate", help="Set learning rate(Alpha)", type=float, default=0.00002)
+    parser.add_argument("-lr", "-a", "--alpha", "--learningrate", help="Set learning rate(Alpha)", type=float, default=0.1)
     parser.add_argument("-lam", help="Set lambda", type=float, default=0.1)
-    parser.add_argument("-n", "--neg", help="Set sample times per epoch", type=int, default=5)
+    parser.add_argument("-n", "--neg", help="Set sample times per epoch", type=int, default=100)
     parser.add_argument("-s", "--seed", help="Set random seed", type=int, default=0)
     parser.add_argument("-rcmd", "--rcmd", help="Set recommend file path", default="recommend.dat")
     parser.add_argument("-topk", "--topk", help="Set recommend top k elements", type=int, default=10)
