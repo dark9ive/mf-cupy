@@ -54,7 +54,7 @@ def main():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     
-    parser.add_argument("-p", "--path", help="Specify dataset path", default="./ml-1m/")
+    parser.add_argument("-p", "--path", help="Specify dataset path", default="./ml-10m/")
     parser.add_argument("-k", "--k", help="Set map at top k elements", type=int, default=10)
     parser.add_argument("-rcmd", "--rcmd", help="Set recommend file path", default="recommend.dat")
 

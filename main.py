@@ -64,15 +64,13 @@ def pre_process():
     M_lines = MF.readlines()
     MF.close()
     M = len(M_lines)
-    UF = open(ml_folder + "users.dat", encoding="utf-8", errors='ignore')
-    U_lines = UF.readlines()
-    UF.close()
-    N = len(U_lines)
+    # UF = open(ml_folder + "users.dat", encoding="utf-8", errors='ignore')
+    # U_lines = UF.readlines()
+    # UF.close()
+    # N = len(U_lines)
     RF = open(ml_folder + "ratings.dat", encoding="utf-8", errors='ignore')
     R_lines = RF.readlines()
     RF.close()
-
-    matrix = np.zeros((N, M), dtype=np.float64)
     
     logger.info('Building item hashtable')
     for i in tqdm(range(M)):
@@ -80,26 +78,35 @@ def pre_process():
         m_id = line.split("::")[0]
         movie_i2id[i] = m_id
         movie_id2i[m_id] = i
-    logger.info('Building user hashtable')
-    for i in tqdm(range(N)):
-        line = U_lines[i]
-        u_id = line.split("::")[0]
-        user_i2id[i] = u_id
-        user_id2i[u_id] = i
+    # logger.info('Building user hashtable')
+    # for i in tqdm(range(N)):
+    #     line = U_lines[i]
+    #     u_id = line.split("::")[0]
+    #     user_i2id[i] = u_id
+    #     user_id2i[u_id] = i
 
     logger.info('Building purchase matrix')
     buf_ht = {}
     pos_lst = []
     neg_mat = []
+    u_idx = 0
     for i in tqdm(range(len(R_lines))):
         line = R_lines[i]
         u_id, m_id, rate, timestamp = line.split("::")
+
+        if u_id not in user_id2i:
+            user_id2i[u_id] = u_idx
+            user_i2id[u_idx] = u_id
+            u_idx += 1
         
         u_i = int(user_id2i[u_id])
         m_i = int(movie_id2i[m_id])
         pos_lst.append([u_i, m_i])
         buf_ht[(u_i, m_i)] = 1
     
+    N = len(user_id2i)
+    matrix = np.zeros((N, M), dtype=np.float64)
+
     logger.info('Converting matrix')
     for i in tqdm(range(N)):
         buf = []
@@ -142,11 +149,11 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     
-    parser.add_argument("-p", "--path", help="Specify dataset path", default="./ml-1m/")
+    parser.add_argument("-p", "--path", help="Specify dataset path", default="./ml-10m/")
     parser.add_argument("-g", "--graph", help="Specify output graph filename and title", default="ML-1M")
     parser.add_argument("-d", "--dim", help="Set Dimension", type=int, default=10)
     parser.add_argument("-e", "--epoch", help="Set epochs to be trained", type=int, default=1000)
-    parser.add_argument("-lr", "-a", "--alpha", "--learningrate", help="Set learning rate(Alpha)", type=float, default=0.1)
+    parser.add_argument("-lr", "-a", "--alpha", "--learningrate", help="Set learning rate(Alpha)", type=float, default=0.01)
     parser.add_argument("-lam", help="Set lambda", type=float, default=0.1)
     parser.add_argument("-n", "--neg", help="Set sample times per epoch", type=int, default=100)
     parser.add_argument("-s", "--seed", help="Set random seed", type=int, default=0)
