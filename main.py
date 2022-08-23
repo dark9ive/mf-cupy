@@ -57,55 +57,39 @@ def pre_process():
     logger.info('Pre Processing')
     movie_i2id = {}
     movie_id2i = {}
+    mov_idx = 0
     user_i2id = {}
     user_id2i = {}
+    usr_idx = 0
 
-    MF = open(ml_folder + "movies.dat", encoding="utf-8", errors='ignore')
-    M_lines = MF.readlines()
-    MF.close()
-    M = len(M_lines)
-    # UF = open(ml_folder + "users.dat", encoding="utf-8", errors='ignore')
-    # U_lines = UF.readlines()
-    # UF.close()
-    # N = len(U_lines)
-    RF = open(ml_folder + "ratings.dat", encoding="utf-8", errors='ignore')
-    R_lines = RF.readlines()
-    RF.close()
-    
-    logger.info('Building item hashtable')
-    for i in tqdm(range(M)):
-        line = M_lines[i]
-        m_id = line.split("::")[0]
-        movie_i2id[i] = m_id
-        movie_id2i[m_id] = i
-    # logger.info('Building user hashtable')
-    # for i in tqdm(range(N)):
-    #     line = U_lines[i]
-    #     u_id = line.split("::")[0]
-    #     user_i2id[i] = u_id
-    #     user_id2i[u_id] = i
-
-    logger.info('Building purchase matrix')
+    logger.info('Building rating matrix')
     buf_ht = {}
     pos_lst = []
-    neg_mat = []
-    u_idx = 0
-    for i in tqdm(range(len(R_lines))):
-        line = R_lines[i]
-        u_id, m_id, rate, timestamp = line.split("::")
+    with open(ml_folder + "ratings.dat") as file:
+        line = file.readline()
+        while(line):
+            u_id, m_id, rate, timestamp = line.split("::")
 
-        if u_id not in user_id2i:
-            user_id2i[u_id] = u_idx
-            user_i2id[u_idx] = u_id
-            u_idx += 1
-        
-        u_i = int(user_id2i[u_id])
-        m_i = int(movie_id2i[m_id])
-        pos_lst.append([u_i, m_i])
-        buf_ht[(u_i, m_i)] = 1
+            if u_id not in user_id2i:
+                user_id2i[u_id] = usr_idx
+                user_i2id[usr_idx] = u_id
+                usr_idx += 1
+
+            if m_id not in movie_id2i:
+                movie_id2i[m_id] = mov_idx
+                movie_i2id[mov_idx] = m_id
+                mov_idx += 1
+
+            u_i = int(user_id2i[u_id])
+            m_i = int(movie_id2i[m_id])
+            pos_lst.append([u_i, m_i])
+            buf_ht[(u_i, m_i)] = 1
+
+            line = file.readline()
     
     N = len(user_id2i)
-    matrix = np.zeros((N, M), dtype=np.float64)
+    M = len(movie_id2i)
+    neg_mat = [[]] * N
 
     logger.info('Converting matrix')
     for i in tqdm(range(N)):
@@ -113,7 +97,7 @@ def pre_process():
         for j in range(M):
             if (i, j) not in buf_ht:
                 buf.append(j)
-        neg_mat.append(buf)
+        neg_mat[i] = buf
 
     return N, M, pos_lst, neg_mat, user_i2id, movie_i2id
 
