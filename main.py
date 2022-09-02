@@ -30,7 +30,7 @@ def mf_bpr_update(Vu, Vi, Vj):
     Vj = Vj + alpha * (ft * (-Vu) + lam * np.linalg.norm(Vj))
     return Vu, Vi, Vj
 
-def bpr_matrix_factorization(P, Q, pos_lst, neg_mat):
+def bpr_matrix_factorization(P, Q, pos_lst, M):
     logger.info('training')
     '''
     R: rating matrix
@@ -47,8 +47,7 @@ def bpr_matrix_factorization(P, Q, pos_lst, neg_mat):
 
         for _ in range(neg):
             x1, y1 = random.choice(pos_lst)
-            x2 = x1
-            y2 = random.choice(neg_mat[x2])
+            y2 = random.randrange(M)
 
             P[x1], Q[y1], Q[y2] = mf_bpr_update(P[x1], Q[y1], Q[y2])
 
@@ -67,7 +66,6 @@ def pre_process():
     user_i2ids = []
     movie_i2ids = []
     pos_lsts = []
-    neg_mats = []
 
     logger.info('Building rating matrix')
     from_p, to_p, p_cnt, p_part = 0, total_lines//part, 0, 0
@@ -84,7 +82,6 @@ def pre_process():
                 user_i2id = {}
                 user_id2i = {}
                 usr_idx = 0
-                buf_ht = {}
                 pos_lst = []
 
             u_id, m_id, rate, timestamp = line.split("::")
@@ -102,7 +99,6 @@ def pre_process():
             u_i = int(user_id2i[u_id])
             m_i = int(movie_id2i[m_id])
             pos_lst.append([u_i, m_i])
-            buf_ht[(u_i, m_i)] = 1
 
             line = file.readline()
 
@@ -120,18 +116,8 @@ def pre_process():
                 user_i2ids.append(user_i2id)
                 movie_i2ids.append(movie_i2id)
                 pos_lsts.append(pos_lst)
-                neg_mat = [[]] * N
 
-                logger.info('Converting matrix')
-                for i in tqdm(range(N)):
-                    buf = []
-                    for j in range(M):
-                        if (i, j) not in buf_ht:
-                            buf.append(j)
-                    neg_mat[i] = buf
-                neg_mats.append(neg_mat)
-
-    return Ns, Ms, pos_lsts, neg_mats, user_i2ids, movie_i2ids
+    return Ns, Ms, pos_lsts, user_i2ids, movie_i2ids
 
 def recommend(nRs, user_i2ids, movie_i2ids):
     logger.info("Recommend")
@@ -151,7 +137,7 @@ def recommend(nRs, user_i2ids, movie_i2ids):
 
 
 def main():
-    Ns, Ms, pos_lsts, neg_mats, user_i2ids, movie_i2ids = pre_process()
+    Ns, Ms, pos_lsts, user_i2ids, movie_i2ids = pre_process()
 
     nRs = []
     for p in range(part):
@@ -159,7 +145,7 @@ def main():
         P = np.random.rand(Ns[p], K)
         Q = np.random.rand(Ms[p], K)
         
-        nP, nQ = bpr_matrix_factorization(P, Q, pos_lsts[p], neg_mats[p])
+        nP, nQ = bpr_matrix_factorization(P, Q, pos_lsts[p], Ms[p])
 
         nR = np.dot(nP, nQ.T)
         nRs.append(nR)
@@ -182,7 +168,7 @@ if __name__ == '__main__':
     parser.add_argument("-s", "--seed", help="Set random seed", type=int, default=0)
     parser.add_argument("-rcmd", "--rcmd", help="Set recommend file path", default="recommend.dat")
     parser.add_argument("-topk", "--topk", help="Set recommend top k elements", type=int, default=10)
-    parser.add_argument("-part", "--part", help="Split data set into k part", type=int, default=4)
+    parser.add_argument("-part", "--part", help="Split data set into k part", type=int, default=1)
 
     args = parser.parse_args()
 
